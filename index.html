@@ -1,72 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Herbal Garden</title>
-
-    <!-- Load A-Frame (Use 1.2.0 for AR.js compatibility) -->
+<html>
+  <head>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-
-    <!-- Load AR.js (Use Latest 3.3.2 for Fixes) -->
     <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden;">
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;" 
+             vr-mode-ui="enabled: false"
+             renderer="antialias: true; alpha: true">
+             
+      <!-- Force Back Camera -->
+      <a-entity camera="active: true" 
+                look-controls 
+                position="0 1.6 0">
+        <a-camera gps-camera rotation-reader 
+                  arjs-camera="facingMode: environment">
+        </a-camera>
+      </a-entity>
 
+      <!-- Marker-based AR -->
+      <a-marker preset="hiro">
+        <a-entity position="0 0 0" scale="0.1 0.1 0.1" gltf-model="models/Coffee_plant.glb"></a-entity>
+      </a-marker>
 
-    <style>
-        body { margin: 0; overflow: hidden; text-align: center; }
-        #controls {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 5px;
-            color: white;
-            z-index: 10;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Model Selection Dropdown -->
-    <div id="controls">
-        <label for="plantSelector">Select a Plant:</label>
-        <select id="plantSelector" onchange="changeModel()">
-            <option value="models/Coffee_plant.glb">Coffee</option>
-            <option value="models/House_Plant.glb">House Plant</option>
-            <option value="models/Flower.glb">Flower</option>
-            <option value="models/rosemary.glb">Rosemary</option>
-            <option value="models/shelf_plants.glb">Shelf Plant</option>
-        </select>
-    </div>
-
-    <!-- A-Frame Scene with AR.js -->
-    <a-scene 
-        embedded 
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true;">
-        
-        <!-- AR Marker -->
-        <a-marker preset="hiro">
-            <a-entity id="plantModel" position="0 1 0" rotation="0 180 0" scale="10 10 10" gltf-model="models/Coffee_plant.glb"></a-entity>
-        </a-marker>
-
-        <a-camera></a-camera>
-        <a-light type="ambient" color="#ffffff"></a-light>
-        <a-light type="directional" position="1 1 1" intensity="1"></a-light>
+      <a-entity light="type: directional; intensity: 0.8" position="1 1 1"></a-entity>
+      
+      <a-entity cursor="rayOrigin: mouse"></a-entity>
     </a-scene>
-
-    
-
-    <!-- JavaScript -->
-    <script>
-        function changeModel() {
-            let selectedModel = document.getElementById("plantSelector").value;
-            document.getElementById("plantModel").setAttribute("gltf-model", selectedModel);
-            console.log("Model Changed To:", selectedModel);
-        }
-    </script>
-
-</body>
+  </body>
 </html>
