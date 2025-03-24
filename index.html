@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Herbal Garden</title>
+
+    <!-- Load A-Frame (Use 1.2.0 for AR.js compatibility) -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+
+    <!-- Load AR.js (Use Latest 3.3.2 for Fixes) -->
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; text-align: center; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Model Selection Dropdown -->
+    <div id="controls">
+        <label for="plantSelector">Select a Plant:</label>
+        <select id="plantSelector" onchange="changeModel()">
+            <option value="models/Coffee_plant.glb">Coffee</option>
+            <option value="models/House_Plant.glb">House Plant</option>
+            <option value="models/Flower.glb">Flower</option>
+            <option value="models/rosemary.glb">Rosemary</option>
+            <option value="models/Shelf_plant.glb">Shelf Plant</option>
+        </select>
+    </div>
+
+    <!-- A-Frame Scene with AR.js -->
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true;">
+        
+        <!-- AR Marker -->
+        <a-marker preset="hiro">
+            <a-entity id="plantModel" position="0 0 0" rotation="0 180 0" scale="0.2 0.2 0.2" gltf-model="models/Coffee_plant.glb"></a-entity>
+        </a-marker>
+
+        <a-camera></a-camera>
+    </a-scene>
+
+    <!-- JavaScript -->
+    <script>
+        function changeModel() {
+            let selectedModel = document.getElementById("plantSelector").value;
+            document.getElementById("plantModel").setAttribute("gltf-model", selectedModel);
+            console.log("Model Changed To:", selectedModel);
+        }
+    </script>
+
+</body>
+</html>
