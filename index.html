@@ -1,10 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Virtual Herbal Garden AR</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+      #plantSelector {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        padding: 10px;
+        font-size: 16px;
+        background: white;
+        border: 1px solid black;
+        border-radius: 5px;
+        z-index: 10;
+      }
+    </style>
   </head>
-  <body style="margin: 0; overflow: hidden;">
+  <body>
+    <!-- Plant Selector Dropdown -->
+    <select id="plantSelector">
+      <option value="models/Plant.glb">Tulsi</option>
+      <option value="models/Coffee_plant.glb">Coffee</option>
+      <option value="models/rosemary.glb">Aloe Vera</option>
+      <option value="models/shelf_plants.glb">shelf_plants</option>
+      <option value="models/Flower_Pot.glb">Flower</option>
+    </select>
+
+    <!-- AR Scene -->
     <a-scene embedded arjs="sourceType: environment; debugUIEnabled: false; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;" 
              vr-mode-ui="enabled: false"
              renderer="antialias: true; alpha: true">
@@ -20,12 +51,20 @@
 
       <!-- Marker-based AR -->
       <a-marker preset="hiro">
-        <a-entity position="0 0 0" scale="0.1 0.1 0.1" gltf-model="models/Coffee_plant.glb"></a-entity>
+        <a-entity id="plantModel" position="0 0 0" scale="0.5 0.5 0.5" gltf-model="models/Plant.glb"></a-entity>
       </a-marker>
 
       <a-entity light="type: directional; intensity: 0.8" position="1 1 1"></a-entity>
       
       <a-entity cursor="rayOrigin: mouse"></a-entity>
     </a-scene>
+
+    <script>
+      // Change the 3D plant model based on selection
+      document.getElementById("plantSelector").addEventListener("change", function(event) {
+        let selectedPlant = event.target.value;
+        document.getElementById("plantModel").setAttribute("gltf-model", selectedPlant);
+      });
+    </script>
   </body>
 </html>
