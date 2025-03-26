@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Virtual Herbal Garden AR</title>
+    <title>AR Herbal Garden</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         #controls {
             position: absolute; top: 10px; left: 10px; z-index: 100;
-            background: rgba(255,255,255,0.8); padding: 10px;
+            background: rgba(255,255,255,0.9); padding: 10px;
             border-radius: 8px; display: flex; flex-direction: column; gap: 8px;
+            width: 200px;
         }
         select, button {
             padding: 8px 12px; font-size: 14px; border: 1px solid #ccc;
-            border-radius: 4px; background: white;
+            border-radius: 4px; background: white; width: 100%;
         }
         .plant-highlight {
             animation: pulse 1s infinite;
@@ -24,19 +25,20 @@
             0% { box-shadow: 0 0 5px 2px rgba(0,255,0,0.5); }
             100% { box-shadow: 0 0 15px 5px rgba(0,255,0,0.2); }
         }
+        #deleteButton { margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
-    <!-- Controls -->
+    <!-- Controls Panel -->
     <div id="controls">
         <select id="plantSelector">
-            <option value="models/Coffee_plant.glb">🌿 Coffee</option>
-            <option value="models/Flower.glb">☕ Flower</option>
-            <option value="models/rosemary.glb">🌱 Aloe Vera</option>
-            <option value="models/shelf_plants.glb">🌱 shelf</option>
+            <option value="models/Coffee_plant.glb">🌿Coffee</option>
+            <option value="models/Flower.glb">🪻Flower</option>
+            <option value="models/Flower_Pot.glb">🪴Flower Pot</option>
+            <option value="models/shelf_plants.glb">Shelf</option>
         </select>
         <button id="addModelButton">➕ Add Plant</button>
-        <button id="deleteButton" style="display:none;">🗑️ Delete Selected</button>
+        <button id="deleteButton">🗑️ Delete Selected</button>
     </div>
 
     <!-- AR Scene -->
@@ -47,120 +49,146 @@
               detectionMode: mono_and_matrix;
               matrixCodeType: 3x3;
               cameraParametersUrl: https://raw.githubusercontent.com/jeromeetienne/ar.js/master/data/data/camera_para.dat"
-        renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true">
+        renderer="logarithmicDepthBuffer: true; antialias: true;">
         
         <a-camera gps-camera rotation-reader></a-camera>
         <a-entity id="plantsContainer"></a-entity>
     </a-scene>
 
     <script>
-        // Initialize variables
+        // DOM Elements
         const plantSelector = document.getElementById('plantSelector');
         const addModelButton = document.getElementById('addModelButton');
         const deleteButton = document.getElementById('deleteButton');
         const plantsContainer = document.getElementById('plantsContainer');
+        
+        // State Management
         let selectedPlant = null;
+        let plants = [];
         let touchStartTime = 0;
         let touchStartX = 0;
         let touchStartY = 0;
         let initialDistance = 0;
         let initialScale = { x: 0.2, y: 0.2, z: 0.2 };
+        let initialPosition = { x: 0, y: 0, z: 0 };
 
-        // Add new plant
-        addModelButton.addEventListener('click', function() {
+        // Event Listeners
+        addModelButton.addEventListener('click', addNewPlant);
+        deleteButton.addEventListener('click', deleteSelectedPlant);
+
+        // Add New Plant Function
+        function addNewPlant() {
             const modelUrl = plantSelector.value;
-            addPlant(modelUrl);
-        });
-
-        // Delete selected plant
-        deleteButton.addEventListener('click', function() {
-            if (selectedPlant) {
-                plantsContainer.removeChild(selectedPlant);
-                selectedPlant = null;
-                deleteButton.style.display = 'none';
-            }
-        });
-
-        // Add plant with random position within camera view
-        function addPlant(modelUrl) {
-            const plant = document.createElement('a-entity');
-            const xPos = (Math.random() * 1 - 0.5); // Constrained to center area
-            const zPos = (Math.random() * -1.5) - 1; // Position in front of camera
+            const plantId = 'plant-' + Date.now();
             
+            const plant = document.createElement('a-entity');
+            plant.setAttribute('id', plantId);
             plant.setAttribute('gltf-model', `url(${modelUrl})`);
-            plant.setAttribute('position', `${xPos} 0 ${zPos}`);
+            plant.setAttribute('position', getRandomPosition());
             plant.setAttribute('scale', '0.2 0.2 0.2');
             plant.setAttribute('rotation', `0 ${Math.random() * 360} 0`);
             plant.setAttribute('class', 'plant');
             plant.setAttribute('gesture-handler', '');
             
             plantsContainer.appendChild(plant);
+            plants.push(plantId);
+            
+            // Select the newly added plant
+            selectPlant(plant);
         }
 
-        // Enhanced gesture handler component
+        // Delete Selected Plant
+        function deleteSelectedPlant() {
+            if (selectedPlant) {
+                const plantId = selectedPlant.id;
+                plantsContainer.removeChild(selectedPlant);
+                plants = plants.filter(id => id !== plantId);
+                selectedPlant = null;
+                deleteButton.style.display = 'none';
+            }
+        }
+
+        // Select Plant
+        function selectPlant(plant) {
+            // Deselect previous plant
+            if (selectedPlant) {
+                selectedPlant.removeAttribute('class', 'plant-highlight');
+            }
+            
+            // Select new plant
+            selectedPlant = plant;
+            plant.setAttribute('class', 'plant plant-highlight');
+            deleteButton.style.display = 'block';
+        }
+
+        // Get Random Position Within View
+        function getRandomPosition() {
+            return {
+                x: (Math.random() * 1.5 - 0.75),  // -0.75 to 0.75
+                y: 0,
+                z: (Math.random() * -1.5) - 1     // -1 to -2.5
+            };
+        }
+
+        // Gesture Handler Component
         AFRAME.registerComponent('gesture-handler', {
             init: function() {
                 const el = this.el;
                 let isDragging = false;
                 
-                // Touch start - select plant
+                // Touch Start
                 el.addEventListener('touchstart', function(evt) {
                     evt.preventDefault();
                     touchStartTime = Date.now();
                     touchStartX = evt.touches[0].clientX;
                     touchStartY = evt.touches[0].clientY;
                     
-                    // Deselect previous plant
-                    if (selectedPlant) {
-                        selectedPlant.removeAttribute('class', 'plant-highlight');
-                    }
-                    
                     // Select this plant
-                    selectedPlant = el;
-                    el.setAttribute('class', 'plant plant-highlight');
-                    deleteButton.style.display = 'block';
+                    selectPlant(el);
+                    
+                    // Store initial values
+                    initialPosition = el.getAttribute('position');
+                    initialScale = el.getAttribute('scale');
                     
                     // For pinch zoom
                     if (evt.touches.length === 2) {
                         initialDistance = getDistance(evt.touches[0], evt.touches[1]);
-                        initialScale = {
-                            x: el.getAttribute('scale').x,
-                            y: el.getAttribute('scale').y,
-                            z: el.getAttribute('scale').z
-                        };
                     }
                 }, {passive: false});
                 
-                // Touch move - drag or scale
+                // Touch Move
                 el.addEventListener('touchmove', function(evt) {
                     evt.preventDefault();
                     
+                    // Only handle if this is the selected plant
+                    if (selectedPlant !== el) return;
+                    
                     // Single touch - drag
-                    if (evt.touches.length === 1 && selectedPlant === el) {
+                    if (evt.touches.length === 1) {
                         const touch = evt.touches[0];
-                        const moveX = touch.clientX - touchStartX;
-                        const moveY = touch.clientY - touchStartY;
+                        const moveX = (touch.clientX - touchStartX) * 0.01;
+                        const moveY = (touch.clientY - touchStartY) * 0.01;
                         
-                        if (Math.abs(moveX) > 5 || Math.abs(moveY) > 5) {
+                        if (Math.abs(moveX) > 0.01 || Math.abs(moveY) > 0.01) {
                             isDragging = true;
-                            const currentPos = el.getAttribute('position');
-                            const newX = currentPos.x + (moveX * 0.01);
-                            const newZ = currentPos.z + (moveY * 0.01);
                             
-                            // Constrain movement to camera view
-                            el.setAttribute('position', {
-                                x: Math.min(Math.max(newX, -1), 1),
+                            // Calculate new position
+                            const newPos = {
+                                x: initialPosition.x + moveX,
                                 y: 0,
-                                z: Math.min(Math.max(newZ, -2.5), -0.5)
-                            });
+                                z: initialPosition.z - moveY
+                            };
                             
-                            touchStartX = touch.clientX;
-                            touchStartY = touch.clientY;
+                            // Constrain to viewable area
+                            newPos.x = Math.max(Math.min(newPos.x, 1.5), -1.5);
+                            newPos.z = Math.max(Math.min(newPos.z, -0.5), -3);
+                            
+                            el.setAttribute('position', newPos);
                         }
                     }
                     
                     // Two touches - scale
-                    if (evt.touches.length === 2 && selectedPlant === el) {
+                    if (evt.touches.length === 2) {
                         const newDistance = getDistance(evt.touches[0], evt.touches[1]);
                         const scaleFactor = newDistance / initialDistance;
                         
@@ -170,7 +198,7 @@
                             z: initialScale.z * scaleFactor
                         };
                         
-                        // Limit scaling
+                        // Limit scaling (0.1 to 1.5)
                         newScale.x = Math.min(Math.max(newScale.x, 0.1), 1.5);
                         newScale.y = Math.min(Math.max(newScale.y, 0.1), 1.5);
                         newScale.z = Math.min(Math.max(newScale.z, 0.1), 1.5);
@@ -179,24 +207,19 @@
                     }
                 }, {passive: false});
                 
-                // Touch end
+                // Touch End
                 el.addEventListener('touchend', function(evt) {
                     evt.preventDefault();
                     
                     // If it was a tap (not drag)
                     if (!isDragging && (Date.now() - touchStartTime < 300)) {
-                        if (selectedPlant) {
-                            selectedPlant.removeAttribute('class', 'plant-highlight');
-                        }
-                        selectedPlant = el;
-                        el.setAttribute('class', 'plant plant-highlight');
-                        deleteButton.style.display = 'block';
+                        selectPlant(el);
                     }
                     
                     isDragging = false;
                 }, {passive: false});
                 
-                // Calculate distance between two touches
+                // Helper function to calculate distance between two touches
                 function getDistance(touch1, touch2) {
                     return Math.sqrt(
                         Math.pow(touch2.clientX - touch1.clientX, 2) +
