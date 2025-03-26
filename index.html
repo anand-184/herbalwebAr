@@ -36,17 +36,17 @@
     </div>
 
     <!-- AR Scene -->
-    <a-scene embedded arjs="sourceType: environment; debugUIEnabled: false;">
+    <a-scene embedded arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
              
         <!-- AR Camera -->
-        <a-camera gps-camera rotation-reader arjs-camera="facingMode: environment"></a-camera>
+        <a-camera gps-camera rotation-reader></a-camera>
 
         <!-- Lighting -->
         <a-entity light="type: directional; intensity: 1.2" position="1 3 3"></a-entity>
         <a-entity light="type: ambient; intensity: 0.5"></a-entity>
 
         <!-- Main plant model  -->
-        <a-entity id="plantModel"  position="0 0 -2" scale="1 1 1"
+        <a-entity id="plantModel" position="0 0 -2" scale="1 1 1"
                   gltf-model="models/House_Plant.glb">
         </a-entity>
 
@@ -56,48 +56,41 @@
     </a-scene>
 
     <script>
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                console.log("Camera access granted:", stream);
+            } catch (error) {
+                console.error("Camera access denied:", error);
+                alert("Please enable camera permissions in settings.");
+            }
+        }
+
+        // Automatically request camera permissions
+        window.onload = startCamera;
+
         let plantSelector = document.getElementById("plantSelector");
         let addModelButton = document.getElementById("addModelButton");
         let plantsContainer = document.getElementById("plantsContainer");
 
-        // Function to create a new plant model
         function createPlantModel(selectedPlant) {
-            let newPlant = document.createElement("a-entity");
+    let newPlant = document.createElement("a-entity");
 
-            let randomX = (Math.random() * 2 - 1).toFixed(2);
-            let randomZ = (-2 + Math.random()).toFixed(2);
+    // Generate random positions with a wider range
+    let randomX = (Math.random() * 4 - 2).toFixed(2);  // Range: -2 to 2
+    let randomZ = (Math.random() * 4 - 3).toFixed(2);  // Range: -3 to 1
+    let randomY = (Math.random() * 0.5).toFixed(2);    // Slight height variation
 
-            newPlant.setAttribute("gltf-model", selectedPlant);
-            newPlant.setAttribute("position", `${randomX} 0 ${randomZ}`);  
-            newPlant.setAttribute("scale", "0.5 0.5 0.5");
-            newPlant.setAttribute("rotation", "0 0 0");
-            newPlant.setAttribute("class", "plant");
+    newPlant.setAttribute("gltf-model", selectedPlant);
+    newPlant.setAttribute("position", `${randomX} ${randomY} ${randomZ}`);
+    newPlant.setAttribute("scale", "0.5 0.5 0.5");
+    newPlant.setAttribute("rotation", `0 ${Math.random() * 360} 0`); // Random rotation
+    newPlant.setAttribute("class", "plant");
 
-            // Add event listener for individual plant interactions
-            newPlant.addEventListener("click", function (event) {
-                if (event.button === 0) {
-                    // Left click: Rotate 45 degrees
-                    let currentRotation = newPlant.getAttribute("rotation");
-                    newPlant.setAttribute("rotation", `0 ${currentRotation.y + 45} 0`);
-                }
-            });
+    plantsContainer.appendChild(newPlant);
+    console.log("Added new model at:", randomX, randomY, randomZ);
+}
 
-            // Right-click to increase size, Shift + Right-click to decrease size
-            newPlant.addEventListener("contextmenu", function (event) {
-                event.preventDefault(); // Prevents default context menu
-
-                let currentScale = newPlant.getAttribute("scale");
-                let scaleFactor = event.shiftKey ? -0.1 : 0.1; // Shift key reduces size
-                let newScale = Math.max(0.2, Math.min(1.5, currentScale.x + scaleFactor)); // Limits scaling
-
-                newPlant.setAttribute("scale", `${newScale} ${newScale} ${newScale}`);
-            });
-
-            plantsContainer.appendChild(newPlant);
-            console.log("Added new model:", selectedPlant);
-        }
-
-        // Add new plants dynamically
         addModelButton.addEventListener("click", function() {
             let selectedPlant = plantSelector.value;
             createPlantModel(selectedPlant);
