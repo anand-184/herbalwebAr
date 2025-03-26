@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Virtual Herbal Garden AR</title>
 
     <!-- A-Frame and AR.js -->
@@ -13,10 +13,12 @@
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
         #controls {
             position: absolute; top: 10px; left: 10px; z-index: 10;
+            background: rgba(255, 255, 255, 0.9); padding: 10px;
+            border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             display: flex; flex-direction: column; gap: 10px;
         }
-        #plantSelector, #addModelButton {
-            padding: 10px; font-size: 16px; background: white;
+        select, button {
+            padding: 10px; font-size: 16px;
             border: 1px solid black; border-radius: 5px; cursor: pointer;
         }
     </style>
@@ -36,23 +38,15 @@
     </div>
 
     <!-- AR Scene -->
-    <a-scene embedded arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;">
-             
-        <!-- AR Camera -->
+    <a-scene embedded arjs="sourceType: environment; facingMode: environment; debugUIEnabled: false;">
         <a-camera gps-camera rotation-reader></a-camera>
 
         <!-- Lighting -->
         <a-entity light="type: directional; intensity: 1.2" position="1 3 3"></a-entity>
         <a-entity light="type: ambient; intensity: 0.5"></a-entity>
 
-        <!-- Main plant model  -->
-        <a-entity id="plantModel" position="0 0 -2" scale="1 1 1"
-                  gltf-model="models/House_Plant.glb">
-        </a-entity>
-
         <!-- Container for multiple plants -->
         <a-entity id="plantsContainer"></a-entity>
-
     </a-scene>
 
     <script>
@@ -65,35 +59,74 @@
                 alert("Please enable camera permissions in settings.");
             }
         }
-
-        // Automatically request camera permissions
         window.onload = startCamera;
 
         let plantSelector = document.getElementById("plantSelector");
         let addModelButton = document.getElementById("addModelButton");
         let plantsContainer = document.getElementById("plantsContainer");
+        let selectedPlant = null;  // Track the selected plant
 
         function createPlantModel(selectedPlant) {
-    let newPlant = document.createElement("a-entity");
+            let newPlant = document.createElement("a-entity");
 
-    // Generate random positions with a wider range
-    let randomX = (Math.random() * 4 - 2).toFixed(2);  // Range: -2 to 2
-    let randomZ = (Math.random() * 4 - 3).toFixed(2);  // Range: -3 to 1
-    let randomY = (Math.random() * 0.5).toFixed(2);    // Slight height variation
+            // Generate random positions
+            let randomX = (Math.random() * 4 - 2).toFixed(2);
+            let randomZ = (Math.random() * 4 - 3).toFixed(2);
+            let randomY = (Math.random() * 0.5).toFixed(2);
 
-    newPlant.setAttribute("gltf-model", selectedPlant);
-    newPlant.setAttribute("position", `${randomX} ${randomY} ${randomZ}`);
-    newPlant.setAttribute("scale", "0.5 0.5 0.5");
-    newPlant.setAttribute("rotation", `0 ${Math.random() * 360} 0`); // Random rotation
-    newPlant.setAttribute("class", "plant");
+            // Assign attributes properly
+            newPlant.setAttribute("gltf-model", selectedPlant);
+            newPlant.setAttribute("position", `${randomX} ${randomY} ${randomZ}`);
+            newPlant.setAttribute("scale", "0.2 0.2 0.2");  // Set smaller size initially
+            newPlant.setAttribute("rotation", `0 ${Math.random() * 360} 0`);
+            newPlant.setAttribute("class", "plant");
 
-    plantsContainer.appendChild(newPlant);
-    console.log("Added new model at:", randomX, randomY, randomZ);
-}
+            // Add tap event to select the plant
+            newPlant.addEventListener("click", function () {
+                selectedPlant = newPlant;
+                console.log("Selected plant:", selectedPlant);
+            });
+
+            plantsContainer.appendChild(newPlant);
+            console.log("Added new model at:", randomX, randomY, randomZ);
+        }
 
         addModelButton.addEventListener("click", function() {
-            let selectedPlant = plantSelector.value;
-            createPlantModel(selectedPlant);
+            let selectedPlantModel = plantSelector.value;
+            createPlantModel(selectedPlantModel);
+        });
+
+        // Touch Gesture Handling for Resizing
+        let startDistance = 0;
+
+        function getDistance(touch1, touch2) {
+            return Math.sqrt(Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2));
+        }
+
+        document.addEventListener("touchstart", function (event) {
+            if (event.touches.length === 2 && selectedPlant) {
+                startDistance = getDistance(event.touches[0], event.touches[1]);
+            }
+        });
+
+        document.addEventListener("touchmove", function (event) {
+            if (event.touches.length === 2 && selectedPlant) {
+                let newDistance = getDistance(event.touches[0], event.touches[1]);
+                let scaleFactor = newDistance / startDistance;
+
+                // Get the current scale and update it
+                let currentScale = selectedPlant.getAttribute("scale");
+                let newScale = {
+                    x: Math.min(Math.max(currentScale.x * scaleFactor, 0.1), 3),
+                    y: Math.min(Math.max(currentScale.y * scaleFactor, 0.1), 3),
+                    z: Math.min(Math.max(currentScale.z * scaleFactor, 0.1), 3)
+                };
+
+                selectedPlant.setAttribute("scale", `${newScale.x} ${newScale.y} ${newScale.z}`);
+                console.log("Resized:", newScale);
+
+                startDistance = newDistance;
+            }
         });
     </script>
 
