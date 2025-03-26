@@ -21,6 +21,14 @@
             padding: 10px; font-size: 16px;
             border: 1px solid black; border-radius: 5px; cursor: pointer;
         }
+        .plant-highlight {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        }
     </style>
 </head>
 <body>
@@ -35,6 +43,7 @@
             <option value="models/Flower_Pot.glb">🪴 Flower Pot</option>
         </select>
         <button id="addModelButton">➕ Add New Plant</button>
+        <button id="deleteButton" style="display:none;">🗑️ Delete Selected</button>
     </div>
 
     <!-- AR Scene -->
@@ -63,8 +72,12 @@
 
         let plantSelector = document.getElementById("plantSelector");
         let addModelButton = document.getElementById("addModelButton");
+        let deleteButton = document.getElementById("deleteButton");
         let plantsContainer = document.getElementById("plantsContainer");
-        let selectedPlant = null;  // Track the selected plant
+        let selectedPlant = null;
+        let touchStartTime = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
 
         function createPlantModel(selectedPlant) {
             let newPlant = document.createElement("a-entity");
@@ -74,13 +87,12 @@
             let randomZ = (Math.random() * 4 - 3).toFixed(2);
             let randomY = (Math.random() * 0.5).toFixed(2);
 
-            // Assign attributes properly
             newPlant.setAttribute("gltf-model", selectedPlant);
             newPlant.setAttribute("position", `${randomX} ${randomY} ${randomZ}`);
-            newPlant.setAttribute("scale", "0.2 0.2 0.2");  // Set smaller size initially
+            newPlant.setAttribute("scale", "0.2 0.2 0.2");
             newPlant.setAttribute("rotation", `0 ${Math.random() * 360} 0`);
             newPlant.setAttribute("class", "plant");
-            newPlant.setAttribute("gesture-controls", "");  // Add gesture support
+            newPlant.setAttribute("gesture-controls", "");
 
             plantsContainer.appendChild(newPlant);
             console.log("Added new model at:", randomX, randomY, randomZ);
@@ -91,62 +103,114 @@
             createPlantModel(selectedPlantModel);
         });
 
-        // 🔥 Custom Component for Tap, Drag, and Pinch-to-Zoom
+        deleteButton.addEventListener("click", function() {
+            if (selectedPlant) {
+                selectedPlant.parentNode.removeChild(selectedPlant);
+                selectedPlant = null;
+                deleteButton.style.display = "none";
+            }
+        });
+
+        // Enhanced gesture controls
         AFRAME.registerComponent('gesture-controls', {
             init: function () {
                 let el = this.el;
                 let scale = { x: 0.2, y: 0.2, z: 0.2 };
-                let selected = false;
+                let isDragging = false;
+                let startDistance = 0;
+                let initialScale = { x: 0.2, y: 0.2, z: 0.2 };
 
-                // Tap to select plant
-                el.addEventListener('click', function () {
+                // Touch start handler
+                el.addEventListener('touchstart', function (e) {
+                    e.preventDefault();
+                    touchStartTime = Date.now();
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    
+                    // Select the plant
+                    if (selectedPlant) {
+                        selectedPlant.removeAttribute('animation');
+                        selectedPlant.removeAttribute('class', 'plant-highlight');
+                    }
                     selectedPlant = el;
-                    console.log("Selected plant:", el);
-                });
+                    el.setAttribute('class', 'plant plant-highlight');
+                    deleteButton.style.display = "block";
+                    
+                    // For two-finger gestures
+                    if (e.touches.length === 2) {
+                        startDistance = getDistance(e.touches[0], e.touches[1]);
+                        initialScale = {
+                            x: el.getAttribute('scale').x,
+                            y: el.getAttribute('scale').y,
+                            z: el.getAttribute('scale').z
+                        };
+                    }
+                }, {passive: false});
 
-                // Drag to move
-                this.el.sceneEl.addEventListener('touchmove', function (event) {
-                    if (event.touches.length === 1 && selectedPlant === el) {
-                        let touch = event.touches[0];
+                // Touch move handler for dragging
+                el.addEventListener('touchmove', function (e) {
+                    e.preventDefault();
+                    
+                    // Single touch - drag
+                    if (e.touches.length === 1 && selectedPlant === el) {
+                        let touch = e.touches[0];
                         let newX = (touch.clientX / window.innerWidth) * 4 - 2;
                         let newZ = (touch.clientY / window.innerHeight) * 4 - 2;
-                        selectedPlant.setAttribute('position', `${newX} 0 ${newZ}`);
+                        
+                        // Check if this is a significant movement to avoid accidental drags
+                        if (Math.abs(touch.clientX - touchStartX) > 10 || 
+                            Math.abs(touch.clientY - touchStartY) > 10) {
+                            isDragging = true;
+                            el.setAttribute('position', `${newX} 0 ${newZ}`);
+                        }
                     }
-                });
-
-                // Pinch to zoom
-                let startDistance = 0;
-                this.el.sceneEl.addEventListener('touchstart', function (event) {
-                    if (event.touches.length === 2 && selectedPlant === el) {
-                        startDistance = getDistance(event.touches[0], event.touches[1]);
-                    }
-                });
-
-                this.el.sceneEl.addEventListener('touchmove', function (event) {
-                    if (event.touches.length === 2 && selectedPlant === el) {
-                        let newDistance = getDistance(event.touches[0], event.touches[1]);
+                    
+                    // Two touches - scale
+                    if (e.touches.length === 2 && selectedPlant === el) {
+                        let newDistance = getDistance(e.touches[0], e.touches[1]);
                         let scaleFactor = newDistance / startDistance;
-
+                        
                         let newScale = {
-                            x: Math.min(Math.max(scale.x * scaleFactor, 0.1), 3),
-                            y: Math.min(Math.max(scale.y * scaleFactor, 0.1), 3),
-                            z: Math.min(Math.max(scale.z * scaleFactor, 0.1), 3)
+                            x: initialScale.x * scaleFactor,
+                            y: initialScale.y * scaleFactor,
+                            z: initialScale.z * scaleFactor
                         };
-
-                        selectedPlant.setAttribute("scale", `${newScale.x} ${newScale.y} ${newScale.z}`);
-                        console.log("Resized:", newScale);
-
-                        scale = newScale;
-                        startDistance = newDistance;
+                        
+                        // Limit scaling
+                        newScale.x = Math.min(Math.max(newScale.x, 0.1), 3);
+                        newScale.y = Math.min(Math.max(newScale.y, 0.1), 3);
+                        newScale.z = Math.min(Math.max(newScale.z, 0.1), 3);
+                        
+                        el.setAttribute("scale", `${newScale.x} ${newScale.y} ${newScale.z}`);
                     }
-                });
+                }, {passive: false});
+
+                // Touch end handler
+                el.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    
+                    // If it was a short tap without movement, consider it a selection
+                    if (!isDragging && (Date.now() - touchStartTime < 300)) {
+                        if (selectedPlant) {
+                            selectedPlant.removeAttribute('animation');
+                            selectedPlant.removeAttribute('class', 'plant-highlight');
+                        }
+                        selectedPlant = el;
+                        el.setAttribute('class', 'plant plant-highlight');
+                        deleteButton.style.display = "block";
+                    }
+                    
+                    isDragging = false;
+                }, {passive: false});
 
                 function getDistance(touch1, touch2) {
-                    return Math.sqrt(Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2));
+                    return Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
                 }
             }
         });
     </script>
-
 </body>
 </html>
